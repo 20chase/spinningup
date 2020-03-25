@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import gym
+import gym_bullet
 import time
 import spinup.algos.tf1.ppo.core as core
 from spinup.utils.logx import EpochLogger
@@ -214,7 +215,9 @@ def ppo(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
     train_pi = MpiAdamOptimizer(learning_rate=pi_lr).minimize(pi_loss)
     train_v = MpiAdamOptimizer(learning_rate=vf_lr).minimize(v_loss)
 
-    sess = tf.Session()
+    conf = tf.ConfigProto()
+    conf.gpu_options.allow_growth=True
+    sess = tf.Session(config=conf)
     sess.run(tf.global_variables_initializer())
 
     # Sync params across processes

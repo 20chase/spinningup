@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import gym
+import gym_bullet
 import time
 from spinup.algos.tf1.sac import core
 from spinup.algos.tf1.sac.core import get_vars
@@ -212,7 +213,9 @@ def sac(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
     target_init = tf.group([tf.assign(v_targ, v_main)
                               for v_main, v_targ in zip(get_vars('main'), get_vars('target'))])
 
-    sess = tf.Session()
+    conf = tf.ConfigProto()
+    conf.gpu_options.allow_growth=True
+    sess = tf.Session(config=conf)
     sess.run(tf.global_variables_initializer())
     sess.run(target_init)
 
