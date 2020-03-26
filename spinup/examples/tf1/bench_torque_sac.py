@@ -10,11 +10,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     eg = ExperimentGrid(name='sac_pos_skipframe_1')
-    eg.add('env_name', ['AntBulletPositionControlEnv-v0', 
-                        'Walker2DBulletPositionControlEnv-v0', 
-                        'HalfCheetahBulletPositionControlEnv-v0', 
-                        'HopperBulletPositionControlEnv-v0',
-                        'HumanoidBulletPositionControlEnv-v0'
+    eg.add('env_name', ['AntBulletEnv-v0', 
+                        'Walker2DBulletEnv-v0', 
+                        'HalfCheetahBulletEnv-v0', 
+                        'HopperBulletEnv-v0',
+                        'HumanoidBulletEnv-v0'
                         ])
     eg.add('seed', [10*i for i in range(args.num_runs)])
     eg.add('epochs', 200)

@@ -42,9 +42,9 @@ class ReplayBuffer:
 
 def sac(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0, 
         steps_per_epoch=4000, epochs=100, replay_size=int(1e6), gamma=0.99, 
-        polyak=0.995, lr=1e-3, alpha=0.2, batch_size=100, start_steps=10000, 
-        update_after=1000, update_every=50, num_test_episodes=10, max_ep_len=1000, 
-        logger_kwargs=dict(), save_freq=1):
+        polyak=0.95, lr=1e-3, alpha=0.2, batch_size=2048, start_steps=10000, 
+        update_after=1000, update_every=50, num_test_episodes=5, max_ep_len=1000, 
+        logger_kwargs=dict(), save_freq=5, skip_frames=1):
     """
     Soft Actor-Critic (SAC)
 
@@ -141,7 +141,10 @@ def sac(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
     env, test_env = env_fn(), env_fn()
     obs_dim = env.observation_space.shape[0]
     act_dim = env.action_space.shape[0]
-
+    
+    max_ep_len *= (1. / skip_frames)
+    max_ep_len = int(max_ep_len)
+    
     # Action limit for clamping: critically, assumes all dimensions share the same bound!
     act_limit = env.action_space.high[0]
 
@@ -232,15 +235,24 @@ def sac(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
             o, d, ep_ret, ep_len = test_env.reset(), False, 0, 0
             while not(d or (ep_len == max_ep_len)):
                 # Take deterministic actions at test time 
-                o, r, d, _ = test_env.step(get_action(o, True))
+                r = 0
+                for _ in range(skip_frames):
+                    o, r_temp, d, _ = test_env.step(get_action(o, True))
+                    r += r_temp
+                    if d:
+                        break
                 ep_ret += r
                 ep_len += 1
             logger.store(TestEpRet=ep_ret, TestEpLen=ep_len)
 
     start_time = time.time()
     o, ep_ret, ep_len = env.reset(), 0, 0
+    steps_per_epoch *= (1. / skip_frames)
+    step_per_epoch = int(steps_per_epoch)
     total_steps = steps_per_epoch * epochs
+    total_steps = int(total_steps)
 
+    
     # Main loop: collect experience in env and update/log each epoch
     for t in range(total_steps):
 
@@ -253,7 +265,13 @@ def sac(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
             a = env.action_space.sample()
 
         # Step the env
-        o2, r, d, _ = env.step(a)
+        r = 0
+        for _ in range(skip_frames):
+            o2, r_temp, d, _ = env.step(a)
+            r += r_temp
+            if d:
+                break
+            
         ep_ret += r
         ep_len += 1
 
@@ -276,7 +294,7 @@ def sac(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
 
         # Update handling
         if t >= update_after and t % update_every == 0:
-            for j in range(update_every):
+            for j in range(10):
                 batch = replay_buffer.sample_batch(batch_size)
                 feed_dict = {x_ph: batch['obs1'],
                              x2_ph: batch['obs2'],
@@ -296,34 +314,35 @@ def sac(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
             if (epoch % save_freq == 0) or (epoch == epochs):
                 logger.save_state({'env': env}, None)
 
-            # Test the performance of the deterministic version of the agent.
-            test_agent()
+                # Test the performance of the deterministic version of the agent.
+                test_agent()
 
-            # Log info about epoch
-            logger.log_tabular('Epoch', epoch)
-            logger.log_tabular('EpRet', with_min_and_max=True)
-            logger.log_tabular('TestEpRet', with_min_and_max=True)
-            logger.log_tabular('EpLen', average_only=True)
-            logger.log_tabular('TestEpLen', average_only=True)
-            logger.log_tabular('TotalEnvInteracts', t)
-            logger.log_tabular('Q1Vals', with_min_and_max=True) 
-            logger.log_tabular('Q2Vals', with_min_and_max=True) 
-            logger.log_tabular('LogPi', with_min_and_max=True)
-            logger.log_tabular('LossPi', average_only=True)
-            logger.log_tabular('LossQ1', average_only=True)
-            logger.log_tabular('LossQ2', average_only=True)
-            logger.log_tabular('Time', time.time()-start_time)
-            logger.dump_tabular()
+                # Log info about epoch
+                logger.log_tabular('Epoch', epoch)
+                logger.log_tabular('EpRet', with_min_and_max=True)
+                logger.log_tabular('TestEpRet', with_min_and_max=True)
+                logger.log_tabular('EpLen', average_only=True)
+                logger.log_tabular('TestEpLen', average_only=True)
+                logger.log_tabular('TotalEnvInteracts', t)
+                logger.log_tabular('Q1Vals', with_min_and_max=True) 
+                logger.log_tabular('Q2Vals', with_min_and_max=True) 
+                logger.log_tabular('LogPi', with_min_and_max=True)
+                logger.log_tabular('LossPi', average_only=True)
+                logger.log_tabular('LossQ1', average_only=True)
+                logger.log_tabular('LossQ2', average_only=True)
+                logger.log_tabular('Time', time.time()-start_time)
+                logger.dump_tabular()
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, default='HalfCheetah-v2')
+    parser.add_argument('--env', type=str, default='HalfCheetahBulletEnv-v0')
     parser.add_argument('--hid', type=int, default=256)
     parser.add_argument('--l', type=int, default=2)
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--seed', '-s', type=int, default=0)
-    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--skip_frames', type=int, default=1)
     parser.add_argument('--exp_name', type=str, default='sac')
     args = parser.parse_args()
 
@@ -332,5 +351,5 @@ if __name__ == '__main__':
 
     sac(lambda : gym.make(args.env), actor_critic=core.mlp_actor_critic,
         ac_kwargs=dict(hidden_sizes=[args.hid]*args.l),
-        gamma=args.gamma, seed=args.seed, epochs=args.epochs,
+        gamma=args.gamma, seed=args.seed, epochs=args.epochs, skip_frames=args.skip_frames, 
         logger_kwargs=logger_kwargs)

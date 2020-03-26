@@ -18,4 +18,5 @@ if __name__ == '__main__':
                         ])
     eg.add('seed', [10*i for i in range(args.num_runs)])
     eg.add('epochs', 200)
+    eg.add('skip_frames', 2)
     eg.run(sac_tf1)
