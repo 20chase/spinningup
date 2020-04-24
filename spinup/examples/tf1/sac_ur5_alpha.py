@@ -9,12 +9,9 @@ if __name__ == '__main__':
     parser.add_argument('--num_runs', type=int, default=3)
     args = parser.parse_args()
 
-    eg = ExperimentGrid(name='sac_torque_skipframe_2')
-    eg.add('env_name', ['AntBulletEnv-v0', 
-                        'Walker2DBulletEnv-v0', 
-                        'HalfCheetahBulletEnv-v0', 
-                        'HopperBulletEnv-v0'
-                        ])
-    eg.add('seed', [10*i for i in range(args.num_runs)])
+    eg = ExperimentGrid(name='sac_ur5_alpha')
+    eg.add('env_name', 'UR5HumanHandoverEnv-v0')
+    eg.add('alpha', [(10 ** i)*0.001 for i in range(5)])
+#     eg.add('seed', [10*i for i in range(args.num_runs)])
     eg.add('epochs', 200)
     eg.run(sac_tf1)

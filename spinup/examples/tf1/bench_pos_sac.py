@@ -13,9 +13,9 @@ if __name__ == '__main__':
     eg.add('env_name', ['AntBulletPositionControlEnv-v0', 
                         'Walker2DBulletPositionControlEnv-v0', 
                         'HalfCheetahBulletPositionControlEnv-v0', 
-                        'HopperBulletPositionControlEnv-v0',
-                        'HumanoidBulletPositionControlEnv-v0'
+                        'HopperBulletPositionControlEnv-v0'
                         ])
     eg.add('seed', [10*i for i in range(args.num_runs)])
     eg.add('epochs', 200)
+    eg.add('skip_frames', 1)
     eg.run(sac_tf1)

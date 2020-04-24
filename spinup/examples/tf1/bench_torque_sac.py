@@ -9,12 +9,11 @@ if __name__ == '__main__':
     parser.add_argument('--num_runs', type=int, default=3)
     args = parser.parse_args()
 
-    eg = ExperimentGrid(name='sac_pos_skipframe_1')
+    eg = ExperimentGrid(name='sac_torque_skipframe_1')
     eg.add('env_name', ['AntBulletEnv-v0', 
                         'Walker2DBulletEnv-v0', 
                         'HalfCheetahBulletEnv-v0', 
-                        'HopperBulletEnv-v0',
-                        'HumanoidBulletEnv-v0'
+                        'HopperBulletEnv-v0'
                         ])
     eg.add('seed', [10*i for i in range(args.num_runs)])
     eg.add('epochs', 200)

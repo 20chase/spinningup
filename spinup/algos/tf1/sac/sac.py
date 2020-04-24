@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import gym
-import gym_bullet
+import pybullet_ur5
 import time
 from spinup.algos.tf1.sac import core
 from spinup.algos.tf1.sac.core import get_vars
@@ -247,14 +247,15 @@ def sac(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
 
     start_time = time.time()
     o, ep_ret, ep_len = env.reset(), 0, 0
-    steps_per_epoch *= (1. / skip_frames)
-    step_per_epoch = int(steps_per_epoch)
+
     total_steps = steps_per_epoch * epochs
     total_steps = int(total_steps)
-
+    
+    
+    t_hat = 0
     
     # Main loop: collect experience in env and update/log each epoch
-    for t in range(total_steps):
+    for t in range(0, total_steps, skip_frames):
 
         # Until start_steps have elapsed, randomly sample actions
         # from a uniform distribution for better exploration. Afterwards, 
@@ -274,6 +275,7 @@ def sac(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
             
         ep_ret += r
         ep_len += 1
+        t_hat += 1
 
         # Ignore the "done" signal if it comes from hitting the time
         # horizon (that is, when it's an artificial terminal signal
@@ -293,7 +295,7 @@ def sac(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
             o, ep_ret, ep_len = env.reset(), 0, 0
 
         # Update handling
-        if t >= update_after and t % update_every == 0:
+        if t_hat >= update_after and t_hat % update_every == 0:
             for j in range(10):
                 batch = replay_buffer.sample_batch(batch_size)
                 feed_dict = {x_ph: batch['obs1'],
@@ -305,10 +307,10 @@ def sac(env_fn, actor_critic=core.mlp_actor_critic, ac_kwargs=dict(), seed=0,
                 outs = sess.run(step_ops, feed_dict)
                 logger.store(LossPi=outs[0], LossQ1=outs[1], LossQ2=outs[2],
                              Q1Vals=outs[3], Q2Vals=outs[4], LogPi=outs[5])
-
+        
         # End of epoch wrap-up
-        if (t+1) % steps_per_epoch == 0:
-            epoch = (t+1) // steps_per_epoch
+        if (t) % steps_per_epoch == 0 and t>0:
+            epoch = (t) // steps_per_epoch
 
             # Save model
             if (epoch % save_freq == 0) or (epoch == epochs):
@@ -339,6 +341,7 @@ if __name__ == '__main__':
     parser.add_argument('--env', type=str, default='HalfCheetahBulletEnv-v0')
     parser.add_argument('--hid', type=int, default=256)
     parser.add_argument('--l', type=int, default=2)
+    parser.add_argument('--alpha', type=float, default=0.2)
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--seed', '-s', type=int, default=0)
     parser.add_argument('--epochs', type=int, default=100)
@@ -350,6 +353,6 @@ if __name__ == '__main__':
     logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed)
 
     sac(lambda : gym.make(args.env), actor_critic=core.mlp_actor_critic,
-        ac_kwargs=dict(hidden_sizes=[args.hid]*args.l),
+        ac_kwargs=dict(hidden_sizes=[args.hid]*args.l), alpha=args.alpha,
         gamma=args.gamma, seed=args.seed, epochs=args.epochs, skip_frames=args.skip_frames, 
         logger_kwargs=logger_kwargs)
